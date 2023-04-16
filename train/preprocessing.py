@@ -70,12 +70,12 @@ class RandomNoise(object):
 
     def __call__(self, x):
         noise = random.uniform(self.min_noise, self.max_noise)
-        x = transforms.functional.adjust_noise(x, noise)
+        x = transforms.functional.adjust_hue(x, noise)
         return x
 
 #画像前処理用のtransformerを作成する
-def get_transformers(image_dir:str = 'dataset\train\0', image_size:int = 224)-> dict[str, transforms.Compose]:
-    mean,std = get_mean_std(image_dir)
+def get_transformers(image_dir:str = 'dataset/train/0', image_size:int = 224)-> dict[str, transforms.Compose]:
+    mean,std = get_mean_std(os.path.normpath(image_dir))
     data_transform = {
         'train': transforms.Compose([
             transforms.Resize(image_size),

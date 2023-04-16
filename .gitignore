@@ -1,2 +1,4 @@
 data/
 *.jpg
+__pycache__
+lightning_logs
