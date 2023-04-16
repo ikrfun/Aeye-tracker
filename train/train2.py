@@ -7,10 +7,6 @@ import os
 from torchvision.models import resnet50
 from preprocessing import get_transformers
 from lightning.pytorch import Trainer
-
-
-
-
 #make_dataset function.
 def get_dataset(dataset_path:str,transform:dict) -> tuple[Dataset]:
     # create the output directory if it does not exist
@@ -21,24 +17,28 @@ def get_dataset(dataset_path:str,transform:dict) -> tuple[Dataset]:
 
 
 class Custom_Resnet(pl.LightningModule):
-    def __init__(self,num_classes:int = 4):
+    def __init__(self,dataset_dir:str,num_classes:int = 4):
         super().__init__()
         self.save_hyperparameters()
-        backbone = resnet50(weights = "DEFAULT")
+        self.dataset_dir = dataset_dir
+        backbone = resnet50()
         num_filters = backbone.fc.in_features
         layers = list(backbone.children())[:-1]
         self.feature_extractor = nn.Sequential(*layers)
         self.classifier = nn.Linear(num_filters,num_classes)
 
     def setup(self):
-        train_dataset,test_dataset = get_dataset(DATASET_DIR,transform=get_transformers())
+        train_dataset,test_dataset = get_dataset(self.dataset_dir,transform=get_transformers())
         train_set_size = int(len(train_dataset) * 0.8)
         valid_set_size = len(train_dataset) - train_set_size
         seed = torch.Generator().manual_seed(42)
-        self.train_set, self.valid_set = random_split(train_set, [train_set_size, valid_set_size], generator=seed)
+        self.train_set, self.valid_set = random_split(train_set_size, [train_set_size, valid_set_size], generator=seed)
 
-    def forward(self, batch, batch_idx):
-        x,y = batch
+    def forward(self, x):
+        z = self.feature_extractor(x)
+        z = z.view(z.size(0), -1)
+        self.classifier(z)
+        return z
         
     
     def training_step(self,batch,batch_idx):
@@ -46,7 +46,7 @@ class Custom_Resnet(pl.LightningModule):
         #x = x.view(x.size(0),-1)
         z = self.feature_extractor(x)
         z = self.classifier(z)
-        loss = nn.CrossEntropyLoss(z,y)
+        loss = nn.CrossEntropyLoss()(z,y)
         return loss
     
     def configure_optimizers(self):
@@ -62,11 +62,11 @@ class Custom_Resnet(pl.LightningModule):
         self.log('val_loss',val_loss)
     
     def test_step(self,batch,batch_idx):
-        
+        pass
     def predict_step(self,batch,batch_idx):
-        
+        pass
 
-from argparse import _ArgumentParser
+from argparse import ArgumentParser
 from lightning.pytorch.callbacks import DeviceStatsMonitor
 
 if __name__ == '__main__':
@@ -83,7 +83,6 @@ if __name__ == '__main__':
     trainer = Trainer(
         profiler = 'advanced',
         callbacks=[DeviceStatsMonitor()],
-
         )
 
     
